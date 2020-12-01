@@ -26,16 +26,23 @@ class TelBot:
             time.sleep(1)
 
     def check_out(self):
-        for name, url, groups in self.db.get_all_urls():
+        for name, url, groups, online in self.db.get_all_urls():
             success = True
             try:
                 if requests.get(url).status_code not in [200, 301, 302]:
                     success = False
             except Exception:
                 success = False
-            if not success:
-                for chat_id in self.db.find_chats_by_groups(json.loads(groups)):
-                    self.send_message(chat_id, f'ALERT! Project "{name}" is not responding!')
+            if online == 1 and not success:
+                online = 0
+            elif online == 0 and success:
+                online = 1
+            else:
+                return
+            self.db.update_url_status(name, online)
+            for chat_id in self.db.find_chats_by_groups(json.loads(groups)):
+                message = 'is not responding!' if online == 0 else "was repaired successfully"
+                self.send_message(chat_id, f'ALERT! Project "{name}"' + message)
 
     def login(self, chat, text):
         chat_id = chat['id']
@@ -66,12 +73,16 @@ class TelBot:
     def send_subscribed_urls(self, chat_id):
         urls = self.db.get_urls_by_chat_id(chat_id)
         self.send_message(chat_id, "Subscribed projects:")
-        for name, _, _ in urls:
-            self.send_message(chat_id, '- ' + name)
+        for name, _, _, online in urls:
+            self.send_message(chat_id, f'- {name} ({"online" if online == 1 else "offline"})')
 
     def get_new_messages(self):
         offset_string = '?offset=' + str(self.update_id + 1) if self.update_id != 0 else ''
-        response = requests.get(self.base_url + '/getUpdates' + offset_string).json()
+        try:
+            response = requests.get(self.base_url + '/getUpdates' + offset_string).json()
+        except Exception:
+            print("Telegram API is not available!")
+            return []
         messages = []
         for message in response['result']:
             self.update_id = message['update_id']
@@ -85,12 +96,15 @@ class TelBot:
         return messages
 
     def send_message(self, chat_id, text):
-        if "[img]" not in text:
-            requests.post(self.base_url + '/sendMessage' + '?chat_id=' + str(chat_id) + '&text=' + text)
-        else:
-            data = {"chat_id": chat_id}
-            with open(text.replace('[img]', ''), "rb") as image_file:
-                requests.post(self.base_url + '/sendPhoto', data=data, files={"photo": image_file})
+        try:
+            if "[img]" not in text:
+                requests.post(self.base_url + '/sendMessage' + '?chat_id=' + str(chat_id) + '&text=' + text)
+            else:
+                data = {"chat_id": chat_id}
+                with open(text.replace('[img]', ''), "rb") as image_file:
+                    requests.post(self.base_url + '/sendPhoto', data=data, files={"photo": image_file})
+        except Exception:
+            print('Connection with telegram was lost')
 
     def send_html_message(self, html, chat_id):
         data = {"chat_id": chat_id,

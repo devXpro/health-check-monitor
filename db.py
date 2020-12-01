@@ -16,7 +16,7 @@ class DB:
                   (name text, `password` text)
                """)
         self.cursor.execute("""CREATE TABLE IF NOT EXISTS `url`
-                  (`name` text, `url` text, `groups` text)
+                  (`name` text, `url` text, `groups` text, online INTEGER default 1)
                """)
 
     def add_user(self, chat_id, group):
@@ -38,9 +38,9 @@ class DB:
             return urls
         else:
             result = []
-            for name, url, groups in urls:
+            for name, url, groups, online in urls:
                 if group in json.loads(groups):
-                    result.append((name, url, groups))
+                    result.append((name, url, groups, online))
             return result
 
     def get_all_urls(self):
@@ -57,6 +57,9 @@ class DB:
             result.append(user[0])
         return result
 
+    def update_url_status(self, name, status):
+        self.cursor.execute(f'UPDATE url SET online={status} WHERE `name`="{name}"')
+        self.conn.commit()
 
     def get_config_value(self, name, chat_id):
         sql = "SELECT `value` FROM config WHERE chat_id=? AND `name`=?"
