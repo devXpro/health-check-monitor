@@ -29,7 +29,7 @@ class TelBot:
         for name, url, groups in self.db.get_all_urls():
             success = True
             try:
-                if requests.get(url).status_code != 200:
+                if requests.get(url).status_code not in [200, 301, 302]:
                     success = False
             except Exception:
                 success = False
