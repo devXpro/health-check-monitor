@@ -1,0 +1,31 @@
+version: "3.7"
+services:
+  sqlite-web:
+    container_name: hcm-sqlite-web
+    image: coleifer/sqlite-web
+    ports:
+      - "2012:8080"
+    env_file: .docker/.env
+    volumes:
+      - .docker/data/sqlite:/data
+    entrypoint: sh -c "sqlite_web -H 0.0.0.0 -x database.db -P ${SQLITE_WEB_PASSWORD}"
+    depends_on:
+      - bot
+
+  bot:
+    container_name: hcm-bot
+    build: .
+    env_file: .docker/.env
+    volumes:
+      - .docker/data/sqlite:/usr/src/app/.docker/data/sqlite
+    command: python -u bot.py
+
+  checker:
+    container_name: hcm-checker
+    build: .
+    env_file: .docker/.env
+    volumes:
+      - .docker/data/sqlite:/usr/src/app/.docker/data/sqlite
+    command: python -u checker.py
+    depends_on:
+      - bot
