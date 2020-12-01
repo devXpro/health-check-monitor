@@ -38,7 +38,7 @@ class TelBot:
             elif online == 0 and success:
                 online = 1
             else:
-                return
+                continue
             self.db.update_url_status(name, online)
             for chat_id in self.db.find_chats_by_groups(json.loads(groups)):
                 message = 'is not responding!' if online == 0 else "was repaired successfully"
