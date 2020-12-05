@@ -16,7 +16,8 @@ class DB:
                   (name text, `password` text)
                """)
         self.cursor.execute("""CREATE TABLE IF NOT EXISTS `url`
-                  (`name` text, `url` text, `groups` text, online INTEGER default 1)
+                  (`name` text, `url` text, `groups` text, online INTEGER default 1, xpath text default null, 
+                  regexp text default null, `state` text default null)
                """)
 
     def add_user(self, chat_id, group):
@@ -59,6 +60,10 @@ class DB:
 
     def update_url_status(self, name, status):
         self.cursor.execute(f'UPDATE url SET online={status} WHERE `name`="{name}"')
+        self.conn.commit()
+
+    def update_url_status_state(self, name, state):
+        self.cursor.execute(f'UPDATE url SET `state`="{state}" WHERE `name`="{name}"')
         self.conn.commit()
 
     def get_config_value(self, name, chat_id):

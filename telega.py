@@ -3,6 +3,8 @@ import os
 import requests
 import time
 import db
+from lxml import html
+import re
 
 import load_env
 
@@ -26,23 +28,42 @@ class TelBot:
             time.sleep(1)
 
     def check_out(self):
-        for name, url, groups, online in self.db.get_all_urls():
+        for name, url, groups, online, xpath, regexp, state in self.db.get_all_urls():
             success = True
+            response = None
             try:
-                if requests.get(url).status_code not in [200, 301, 302, 429]:
+                headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) '
+                                         'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
+                response = requests.get(url, headers=headers)
+                if response.status_code not in [200, 301, 302, 429]:
                     success = False
             except Exception:
                 success = False
-            if online == 1 and not success:
-                online = 0
-            elif online == 0 and success:
-                online = 1
-            else:
-                continue
-            self.db.update_url_status(name, online)
-            for chat_id in self.db.find_chats_by_groups(json.loads(groups)):
-                message = 'is not responding!' if online == 0 else "was repaired successfully"
-                self.send_message(chat_id, f'ALERT! Project "{name}"' + message)
+            if (online == 1 and not success) or (online == 0 and success):
+                if online == 1 and not success:
+                    online = 0
+                elif online == 0 and success:
+                    online = 1
+                self.db.update_url_status(name, online)
+                for chat_id in self.db.find_chats_by_groups(json.loads(groups)):
+                    message = 'is not responding!' if online == 0 else " was repaired successfully"
+                    self.send_message(chat_id, f'ALERT! Project "{name}"' + message)
+            if success and xpath:
+                text = state
+                tree = html.fromstring(response.content)
+                element = tree.xpath(xpath)
+                if len(element) > 0:
+                    element = element[0]
+                    text = element.text
+                    if regexp:
+                        match = re.findall(regexp, text)
+                        if len(match) > 0:
+                            text = match[0].replace(' ', ' ')
+                if text != state:
+                    for chat_id in self.db.find_chats_by_groups(json.loads(groups)):
+                        message = f'{name} was changed from {str(state)} to {str(text)}'
+                        self.send_message(chat_id, message)
+                        self.db.update_url_status_state(name, str(text))
 
     def login(self, chat, text):
         chat_id = chat['id']
@@ -73,8 +94,9 @@ class TelBot:
     def send_subscribed_urls(self, chat_id):
         urls = self.db.get_urls_by_chat_id(chat_id)
         self.send_message(chat_id, "Subscribed projects:")
-        for name, _, _, online in urls:
-            self.send_message(chat_id, f'- {name} ({"online" if online == 1 else "offline"})')
+        for name, _, _, online, xpath, _, state in urls:
+            info = ("online" if online == 1 else "offline") if not xpath else state
+            self.send_message(chat_id, f'- {name} ({info})')
 
     def get_new_messages(self):
         offset_string = '?offset=' + str(self.update_id + 1) if self.update_id != 0 else ''
