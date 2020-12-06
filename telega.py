@@ -49,7 +49,6 @@ class TelBot:
                     message = 'is not responding!' if online == 0 else " was repaired successfully"
                     self.send_message(chat_id, f'ALERT! Project "{name}"' + message)
             if success and xpath:
-                text = state
                 tree = html.fromstring(response.content)
                 element = tree.xpath(xpath)
                 if len(element) > 0:
@@ -59,6 +58,10 @@ class TelBot:
                         match = re.findall(regexp, text)
                         if len(match) > 0:
                             text = match[0].replace(' ', ' ')
+                        else:
+                            text = 'undefined'
+                else:
+                    text = 'undefined'
                 if text != state:
                     for chat_id in self.db.find_chats_by_groups(json.loads(groups)):
                         message = f'{name} was changed from {str(state)} to {str(text)}'
