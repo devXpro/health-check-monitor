@@ -29,6 +29,10 @@ class TelBot:
 
     def check_out(self):
         for name, url, groups, online, xpath, regexp, state in self.db.get_all_urls():
+            if xpath:
+                _, _, _, _, min = map(int, time.strftime("%Y %m %d %H %M").split())
+                if min not in [1, 31]:
+                    continue
             success = True
             response = None
             try:
