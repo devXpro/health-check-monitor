@@ -39,9 +39,9 @@ class DB:
             return urls
         else:
             result = []
-            for name, url, groups, online in urls:
+            for name, url, groups, online, xpath, regexp, state in urls:
                 if group in json.loads(groups):
-                    result.append((name, url, groups, online))
+                    result.append((name, url, groups, online, xpath, regexp, state))
             return result
 
     def get_all_urls(self):
